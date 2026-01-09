@@ -38,6 +38,7 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 #elif KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE
 #include <drm/drm_drv.h>
@@ -54,7 +55,6 @@
 #if KERNEL_VERSION(4, 19, 0) <= LINUX_VERSION_CODE
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_probe_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_fourcc.h>
