@@ -95,6 +95,18 @@
 #define EVDI_HAVE_XA_ALLOC_CYCLIC 1
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+#ifndef evdi_access_ok_read
+#define evdi_access_ok_read(uaddr, size)  access_ok(VERIFY_READ,  (uaddr), (size))
+#define evdi_access_ok_write(uaddr, size) access_ok(VERIFY_WRITE, (uaddr), (size))
+#endif
+#else
+#ifndef evdi_access_ok_read
+#define evdi_access_ok_read(uaddr, size)  access_ok((uaddr), (size))
+#define evdi_access_ok_write(uaddr, size) access_ok((uaddr), (size))
+#endif
+#endif
+
 #include "uapi/evdi_drm.h"
 
 #define DRIVER_NAME "evdi-lindroid"
@@ -195,7 +207,7 @@ struct evdi_gem_object {
 	atomic_t pages_pin_count;
 	struct mutex pages_lock;
 	void *vmapping;
-#if KERNEL_VERSION(5, 11, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(4, 19, 0) <= LINUX_VERSION_CODE
 	bool vmap_is_iomem;
 #endif
 	bool vmap_is_vmram;
