@@ -75,6 +75,7 @@ static void evdi_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_device *ddev;
 	struct evdi_framebuffer *efb;
 	unsigned long flags;
+	int display_id;
 
 	drm_crtc_handle_vblank(&pipe->crtc);
 
@@ -92,10 +93,14 @@ static void evdi_pipe_update(struct drm_simple_display_pipe *pipe,
 
 	efb = to_evdi_fb(fb);
 
+	display_id = evdi_connector_slot(evdi, pipe->connector);
+	if (display_id < 0)
+		return;
+
 	if (efb && efb->owner && efb->gralloc_buf_id)
 		evdi_queue_swap_event(evdi,
 				      efb->gralloc_buf_id,
-				      evdi_connector_slot(evdi, pipe->connector),
+				      display_id,
 				      efb->owner);
 
 	if (unlikely(!READ_ONCE(evdi->drm_client)))

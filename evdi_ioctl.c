@@ -483,6 +483,7 @@ int evdi_ioctl_connect(struct drm_device *dev, void *data, struct drm_file *file
 		mutex_lock(&evdi->config_mutex);
 		evdi->displays[cmd->display_id].connected = false;
 		mutex_unlock(&evdi->config_mutex);
+		drm_crtc_vblank_off(&evdi->pipe[cmd->display_id].crtc);
 		{
 			int i, any = 0;
 			for (i = 0; i < LINDROID_MAX_CONNECTORS; i++)

@@ -22,6 +22,9 @@ atomic_t evdi_device_count = ATOMIC_INIT(0);
 static int evdi_driver_open(struct drm_device *dev, struct drm_file *file);
 static void evdi_driver_postclose(struct drm_device *dev, struct drm_file *file);
 
+/* Enforce single EVDI instance */
+static struct evdi_device *global_evdi;
+
 #if EVDI_HAVE_DRM_OPEN_CLOSE
 static const struct file_operations evdi_fops = {
 	.owner = THIS_MODULE,
@@ -61,6 +64,26 @@ static const struct drm_ioctl_desc evdi_ioctls[] = {
 			 EVDI_IOCTL_FLAGS),
 };
 
+static void evdi_lastclose(struct drm_device *dev)
+{
+    struct evdi_device *evdi = dev->dev_private;
+    int i;
+
+    evdi_info("Last DRM client closed, resetting state");
+
+    mutex_lock(&evdi->config_mutex);
+    for (i = 0; i < LINDROID_MAX_CONNECTORS; i++)
+        evdi->displays[i].connected = false;
+    mutex_unlock(&evdi->config_mutex);
+
+    WRITE_ONCE(evdi->drm_client, NULL);
+
+    drm_mode_config_reset(dev);
+
+    for (i = 0; i < LINDROID_MAX_CONNECTORS; i++)
+        drm_crtc_vblank_off(&evdi->pipe[i].crtc);
+}
+
 static struct drm_driver evdi_driver = {
 	.driver_features = DRIVER_MODESET |
 			  DRIVER_RENDER |
@@ -68,6 +91,7 @@ static struct drm_driver evdi_driver = {
 			  DRIVER_ATOMIC |
 #endif
 			  DRIVER_GEM,
+	.lastclose = evdi_lastclose,
 
 	.dumb_create = evdi_dumb_create,
 #if KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE
@@ -146,7 +170,8 @@ int evdi_device_init(struct evdi_device *evdi, struct platform_device *pdev)
 	int ret = 0;
 	int i;
 
-	evdi->dev_index = atomic_inc_return(&evdi_device_count) - 1;
+	/* Always use a stable index on Android */
+	evdi->dev_index = 0;
 	for (i = 0; i < LINDROID_MAX_CONNECTORS; i++) {
 		evdi->displays[i].connected = false;
 		evdi->displays[i].width = 1920;
@@ -255,6 +280,12 @@ static int evdi_platform_probe(struct platform_device *pdev)
 	struct drm_device *ddev;
 	int ret, i;
 
+	/* Prevent multiple DRM devices */
+	if (global_evdi) {
+		evdi_warn("EVDI already initialized, skipping probe");
+		return 0;
+	}
+
 	evdi = kzalloc(sizeof(*evdi), GFP_KERNEL);
 	if (!evdi)
 		return -ENOMEM;
@@ -262,6 +293,8 @@ static int evdi_platform_probe(struct platform_device *pdev)
 	ret = evdi_device_init(evdi, pdev);
 	if (ret)
 		goto err_init;
+
+	global_evdi = evdi;
 
 #ifdef EVDI_HAVE_DRM_MANAGED
 	ddev = drm_dev_alloc(&evdi_driver, &pdev->dev);
